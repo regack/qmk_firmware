@@ -354,6 +354,7 @@ void rgblight_timer_init(void) {
     return;
   }
   rgblight_timer_is_init = 1;
+#if defined(__AVR_ATmega32U4__)
   /* Timer 3 setup */
   TCCR3B = _BV(WGM32) //CTC mode OCR3A as TOP
         | _BV(CS30); //Clock selelct: clk/1
@@ -376,8 +377,36 @@ void rgblight_timer_toggle(void) {
   TIMSK3 ^= _BV(OCIE3A);
   dprintf("TIMER3 toggled.\n");
 }
+#elif defined(__AVR_ATmega32U2__)
+    /* Timer 1 setup */
+    TCCR1B = _BV(WGM12) //CTC mode
+          | _BV(CS10); //Clock selelct: clk/1
+    /* Set TOP value */
+    uint8_t sreg = SREG;
+    cli();
+    OCR1AH = (RGBLED_TIMER_TOP>>8)&0xff;
+    OCR1AL = RGBLED_TIMER_TOP&0xff;
+    SREG = sreg;
+}
+void rgblight_timer_enable(void) {
+    TIMSK1 |= _BV(OCIE1A);
+    dprintf("TIMER1 enabled.\n");
+}
+void rgblight_timer_disable(void) {
+    TIMSK1 &= ~_BV(OCIE1A);
+    dprintf("TIMER1 disabled.\n");
+}
+void rgblight_timer_toggle(void) {
+    TIMSK1 ^= _BV(OCIE1A);
+    dprintf("TIMER1 toggled.\n");
+}
+#endif
 
+#if defined(__AVR_ATmega32U4__)
 ISR(TIMER3_COMPA_vect) {
+  #elif defined(__AVR_ATmega32U2__)
+ISR(TIMER1_COMPA_vect) {
+  #endif
   // mode = 1, static light, do nothing here
   if (rgblight_config.mode >= 2 && rgblight_config.mode <= 5) {
     // mode = 2 to 5, breathing mode
